@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../pages/login_page.dart';
+import '../pages/login_screens.dart';
 
 class TenisCondominioApp extends StatelessWidget {
   const TenisCondominioApp({super.key});
