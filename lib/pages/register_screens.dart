@@ -1,7 +1,107 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
-class RegisterPage extends StatelessWidget {
+import 'login_screens.dart';
+
+class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
+
+  @override
+  State<RegisterPage> createState() => _RegisterPageState();
+}
+
+class _RegisterPageState extends State<RegisterPage> {
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _register() async {
+    if (_nameController.text.trim().isEmpty ||
+        _emailController.text.trim().isEmpty ||
+        _passwordController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Preencha todos os campos.")),
+      );
+      return;
+    }
+
+    try {
+      await _auth.createUserWithEmailAndPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text.trim(),
+      );
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Conta criada com sucesso!")),
+      );
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const LoginPage()),
+      );
+    } on FirebaseAuthException catch (e) {
+      debugPrint("=======================================");
+      debugPrint("FIREBASE REGISTER ERROR");
+      debugPrint("Code: ${e.code}");
+      debugPrint("Message: ${e.message}");
+      debugPrint("=======================================");
+
+      String mensagem;
+
+      switch (e.code) {
+        case 'email-already-in-use':
+          mensagem = "Este e-mail já está cadastrado.";
+          break;
+
+        case 'invalid-email':
+          mensagem = "E-mail inválido.";
+          break;
+
+        case 'weak-password':
+          mensagem = "A senha deve ter pelo menos 6 caracteres.";
+          break;
+
+        case 'operation-not-allowed':
+          mensagem =
+              "Login por e-mail e senha não está habilitado no Firebase.";
+          break;
+
+        case 'network-request-failed':
+          mensagem = "Falha de conexão com a internet.";
+          break;
+
+        default:
+          mensagem = "Erro ao criar conta (${e.code}).";
+      }
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(mensagem)));
+    } catch (e) {
+      debugPrint("ERRO DESCONHECIDO:");
+      debugPrint(e.toString());
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Erro inesperado: $e")));
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -18,11 +118,7 @@ class RegisterPage extends StatelessWidget {
           padding: const EdgeInsets.all(30),
           child: Column(
             children: [
-              const Icon(
-                Icons.person_add,
-                color: Colors.white,
-                size: 80,
-              ),
+              const Icon(Icons.person_add, color: Colors.white, size: 80),
 
               const SizedBox(height: 20),
 
@@ -38,6 +134,7 @@ class RegisterPage extends StatelessWidget {
               const SizedBox(height: 40),
 
               TextField(
+                controller: _nameController,
                 decoration: InputDecoration(
                   hintText: "Nome completo",
                   filled: true,
@@ -52,6 +149,8 @@ class RegisterPage extends StatelessWidget {
               const SizedBox(height: 20),
 
               TextField(
+                controller: _emailController,
+                keyboardType: TextInputType.emailAddress,
                 decoration: InputDecoration(
                   hintText: "E-mail",
                   filled: true,
@@ -66,6 +165,7 @@ class RegisterPage extends StatelessWidget {
               const SizedBox(height: 20),
 
               TextField(
+                controller: _passwordController,
                 obscureText: true,
                 decoration: InputDecoration(
                   hintText: "Senha",
@@ -84,21 +184,30 @@ class RegisterPage extends StatelessWidget {
                 width: double.infinity,
                 height: 55,
                 child: ElevatedButton(
-                  onPressed: () {
-                    
-                  },
-
+                  onPressed: _register,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.white,
                     foregroundColor: Colors.green.shade900,
                   ),
-
                   child: const Text(
                     "CRIAR CONTA",
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontWeight: FontWeight.bold),
                   ),
+                ),
+              ),
+
+              const SizedBox(height: 20),
+
+              TextButton(
+                onPressed: () {
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(builder: (context) => const LoginPage()),
+                  );
+                },
+                child: const Text(
+                  "Já tenho uma conta",
+                  style: TextStyle(color: Colors.white),
                 ),
               ),
             ],
