@@ -1,31 +1,42 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+import 'profile_screens.dart';
+
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
 
-  Widget card(String titulo, IconData icone) {
+  Widget card(
+    BuildContext context,
+    String titulo,
+    IconData icone, {
+    VoidCallback? onTap,
+  }) {
     return Card(
       elevation: 4,
-      child: SizedBox(
-        height: 120,
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                icone,
-                color: Colors.green,
-                size: 40,
-              ),
-              const SizedBox(height: 10),
-              Text(
-                titulo,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
+        child: SizedBox(
+          height: 120,
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  icone,
+                  color: Colors.green,
+                  size: 40,
                 ),
-              ),
-            ],
+                const SizedBox(height: 10),
+                Text(
+                  titulo,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -73,7 +84,6 @@ class HomePage extends StatelessWidget {
           ),
         ],
       ),
-
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -84,24 +94,44 @@ class HomePage extends StatelessWidget {
                   child: Icon(Icons.person),
                 ),
                 title: const Text("Bem-vindo!"),
-                subtitle: Text(
-                  usuario?.email ?? "Usuário",
-                ),
+                subtitle: Text(usuario?.email ?? "Usuário"),
               ),
             ),
-
             const SizedBox(height: 20),
-
             Expanded(
               child: GridView.count(
                 crossAxisCount: 2,
                 crossAxisSpacing: 15,
                 mainAxisSpacing: 15,
                 children: [
-                  card("Ranking", Icons.emoji_events),
-                  card("Desafios", Icons.sports_tennis),
-                  card("Partidas", Icons.calendar_month),
-                  card("Perfil", Icons.person),
+                  card(
+                    context,
+                    "Ranking",
+                    Icons.emoji_events,
+                  ),
+                  card(
+                    context,
+                    "Desafios",
+                    Icons.sports_tennis,
+                  ),
+                  card(
+                    context,
+                    "Partidas",
+                    Icons.calendar_month,
+                  ),
+                  card(
+                    context,
+                    "Perfil",
+                    Icons.person,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const ProfilePage(),
+                        ),
+                      );
+                    },
+                  ),
                 ],
               ),
             ),
