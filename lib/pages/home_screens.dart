@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import 'profile_screens.dart';
-import 'reservation_screens.dart';
+import 'reservations_menu_screens.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -107,7 +107,7 @@ class HomePage extends StatelessWidget {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => const ReservationPage(),
+                          builder: (context) => const ReservationsMenuPage(),
                         ),
                       );
                     },
