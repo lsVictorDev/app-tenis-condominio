@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import 'profile_screens.dart';
+import 'reservation_screens.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -23,17 +24,11 @@ class HomePage extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(
-                  icone,
-                  color: Colors.green,
-                  size: 40,
-                ),
+                Icon(icone, color: Colors.green, size: 40),
                 const SizedBox(height: 10),
                 Text(
                   titulo,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
               ],
             ),
@@ -90,9 +85,7 @@ class HomePage extends StatelessWidget {
           children: [
             Card(
               child: ListTile(
-                leading: const CircleAvatar(
-                  child: Icon(Icons.person),
-                ),
+                leading: const CircleAvatar(child: Icon(Icons.person)),
                 title: const Text("Bem-vindo!"),
                 subtitle: Text(usuario?.email ?? "Usuário"),
               ),
@@ -104,20 +97,20 @@ class HomePage extends StatelessWidget {
                 crossAxisSpacing: 15,
                 mainAxisSpacing: 15,
                 children: [
+                  card(context, "Ranking", Icons.emoji_events),
+                  card(context, "Desafios", Icons.sports_tennis),
                   card(
                     context,
-                    "Ranking",
-                    Icons.emoji_events,
-                  ),
-                  card(
-                    context,
-                    "Desafios",
-                    Icons.sports_tennis,
-                  ),
-                  card(
-                    context,
-                    "Partidas",
+                    "Reservas",
                     Icons.calendar_month,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const ReservationPage(),
+                        ),
+                      );
+                    },
                   ),
                   card(
                     context,
