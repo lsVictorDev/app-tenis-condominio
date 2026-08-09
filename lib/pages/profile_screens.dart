@@ -19,31 +19,68 @@ class _ProfilePageState extends State<ProfilePage> {
   String _nivel = "Iniciante";
 
   Map<String, dynamic>? _dadosUsuario;
+
   bool _carregando = true;
 
   Future<void> _carregarDados() async {
-    final uid = FirebaseAuth.instance.currentUser!.uid;
+    final usuario = FirebaseAuth.instance.currentUser;
 
-    final doc = await FirebaseFirestore.instance
-        .collection('usuarios')
-        .doc(uid)
-        .get();
+    if (usuario == null) {
+      setState(() {
+        _carregando = false;
+      });
+      return;
+    }
 
-    if (!doc.exists) return;
+    final uid = usuario.uid;
 
-    _dadosUsuario = doc.data();
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('usuarios')
+          .doc(uid)
+          .get();
 
-    _telefoneController.text = _dadosUsuario?['telefone'] ?? '';
+      if (!doc.exists) {
+        setState(() {
+          _carregando = false;
+        });
+        return;
+      }
 
-    _blocoController.text = _dadosUsuario?['bloco'] ?? '';
+      _dadosUsuario = doc.data();
 
-    _apartamentoController.text = _dadosUsuario?['apartamento'] ?? '';
+      _telefoneController.text = _dadosUsuario?['telefone'] ?? '';
 
-    _nivel = _dadosUsuario?['nivel'] ?? 'Iniciante';
+      _blocoController.text = _dadosUsuario?['bloco'] ?? '';
 
-    setState(() {
-      _carregando = false;
-    });
+      _apartamentoController.text = _dadosUsuario?['apartamento'] ?? '';
+
+      _nivel = _dadosUsuario?['nivel'] ?? 'Iniciante';
+
+      if (!mounted) return;
+
+      setState(() {
+        _carregando = false;
+      });
+    } catch (e) {
+      debugPrint("======================================");
+      debugPrint("ERRO AO CARREGAR PERFIL");
+      debugPrint(e.toString());
+      debugPrint("======================================");
+
+      if (!mounted) return;
+
+      setState(() {
+        _carregando = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Erro ao carregar perfil:\n$e"),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   @override
@@ -53,7 +90,11 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Future<void> _salvarPerfil() async {
-    final uid = FirebaseAuth.instance.currentUser!.uid;
+    final usuario = FirebaseAuth.instance.currentUser;
+
+    if (usuario == null) return;
+
+    final uid = usuario.uid;
 
     try {
       await FirebaseFirestore.instance.collection('usuarios').doc(uid).update({
@@ -97,6 +138,27 @@ class _ProfilePageState extends State<ProfilePage> {
     super.dispose();
   }
 
+  Widget _estatistica(String valor, String titulo, IconData icone) {
+    return Expanded(
+      child: Column(
+        children: [
+          Icon(icone, color: Colors.green.shade900, size: 24),
+          const SizedBox(height: 6),
+          Text(
+            valor,
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            titulo,
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_carregando) {
@@ -110,6 +172,11 @@ class _ProfilePageState extends State<ProfilePage> {
       );
     }
 
+    final pontos = _dadosUsuario?['pontos'] ?? 1000;
+    final vitorias = _dadosUsuario?['vitorias'] ?? 0;
+    final derrotas = _dadosUsuario?['derrotas'] ?? 0;
+    final partidas = _dadosUsuario?['partidas'] ?? 0;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text("Meu Perfil"),
@@ -122,7 +189,85 @@ class _ProfilePageState extends State<ProfilePage> {
           children: [
             const CircleAvatar(radius: 45, child: Icon(Icons.person, size: 50)),
 
-            const SizedBox(height: 30),
+            const SizedBox(height: 15),
+
+            Center(
+              child: Text(
+                _dadosUsuario?['nome'] ?? 'Jogador',
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 5),
+
+            Center(
+              child: Text(
+                _dadosUsuario?['nivel'] ?? 'Iniciante',
+                style: TextStyle(color: Colors.grey.shade700, fontSize: 15),
+              ),
+            ),
+
+            const SizedBox(height: 25),
+
+            Card(
+              elevation: 3,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  vertical: 18,
+                  horizontal: 10,
+                ),
+                child: Column(
+                  children: [
+                    const Text(
+                      "Estatísticas",
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+
+                    const SizedBox(height: 18),
+
+                    Row(
+                      children: [
+                        _estatistica(
+                          pontos.toString(),
+                          "Pontos",
+                          Icons.emoji_events,
+                        ),
+                        _estatistica(
+                          partidas.toString(),
+                          "Partidas",
+                          Icons.sports_tennis,
+                        ),
+                        _estatistica(
+                          vitorias.toString(),
+                          "Vitórias",
+                          Icons.check_circle,
+                        ),
+                        _estatistica(
+                          derrotas.toString(),
+                          "Derrotas",
+                          Icons.cancel,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 25),
+
+            const Text(
+              "Informações pessoais",
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+
+            const SizedBox(height: 15),
 
             TextFormField(
               initialValue: _dadosUsuario?['nome'] ?? '',
@@ -196,8 +341,10 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
               ],
               onChanged: (valor) {
+                if (valor == null) return;
+
                 setState(() {
-                  _nivel = valor!;
+                  _nivel = valor;
                 });
               },
             ),
@@ -212,6 +359,8 @@ class _ProfilePageState extends State<ProfilePage> {
                 label: const Text("SALVAR ALTERAÇÕES"),
               ),
             ),
+
+            const SizedBox(height: 20),
           ],
         ),
       ),

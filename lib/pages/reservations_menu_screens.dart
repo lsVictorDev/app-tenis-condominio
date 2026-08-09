@@ -25,11 +25,7 @@ class ReservationsMenuPage extends StatelessWidget {
               CircleAvatar(
                 radius: 30,
                 backgroundColor: Colors.green.shade100,
-                child: Icon(
-                  icone,
-                  color: Colors.green.shade900,
-                  size: 30,
-                ),
+                child: Icon(icone, color: Colors.green.shade900, size: 30),
               ),
 
               const SizedBox(width: 20),
@@ -50,9 +46,7 @@ class ReservationsMenuPage extends StatelessWidget {
 
                     Text(
                       descricao,
-                      style: TextStyle(
-                        color: Colors.grey.shade700,
-                      ),
+                      style: TextStyle(color: Colors.grey.shade700),
                     ),
                   ],
                 ),
@@ -79,30 +73,20 @@ class ReservationsMenuPage extends StatelessWidget {
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
-            const Icon(
-              Icons.calendar_month,
-              size: 80,
-              color: Colors.green,
-            ),
+            const Icon(Icons.calendar_month, size: 80, color: Colors.green),
 
             const SizedBox(height: 20),
 
             const Text(
               "Gerenciar reservas",
-              style: TextStyle(
-                fontSize: 26,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
             ),
 
             const SizedBox(height: 10),
 
             Text(
               "Escolha uma opção abaixo.",
-              style: TextStyle(
-                color: Colors.grey.shade700,
-                fontSize: 16,
-              ),
+              style: TextStyle(color: Colors.grey.shade700, fontSize: 16),
             ),
 
             const SizedBox(height: 30),
@@ -133,8 +117,7 @@ class ReservationsMenuPage extends StatelessWidget {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) =>
-                        const MyReservationsPage(),
+                    builder: (context) => const MyReservationsPage(),
                   ),
                 );
               },

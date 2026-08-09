@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import 'login_screens.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+
 final FirebaseAuth _auth = FirebaseAuth.instance;
 final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
@@ -29,91 +30,92 @@ class _RegisterPageState extends State<RegisterPage> {
   }
 
   Future<void> _register() async {
-  if (_nameController.text.trim().isEmpty ||
-      _emailController.text.trim().isEmpty ||
-      _passwordController.text.trim().isEmpty) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text("Preencha todos os campos."),
-      ),
-    );
-    return;
-  }
-
-  try {
-    // Cria usuário no Firebase Authentication
-    UserCredential userCredential =
-        await _auth.createUserWithEmailAndPassword(
-      email: _emailController.text.trim(),
-      password: _passwordController.text.trim(),
-    );
-
-    // Obtém o UID do usuário criado
-    final uid = userCredential.user!.uid;
-
-    // Salva os dados no Cloud Firestore
-    await _firestore.collection('usuarios').doc(uid).set({
-      'uid': uid,
-      'nome': _nameController.text.trim(),
-      'email': _emailController.text.trim(),
-      'criadoEm': FieldValue.serverTimestamp(),
-    });
-
-    if (!mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text("Conta criada com sucesso!"),
-      ),
-    );
-
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const LoginPage(),
-      ),
-    );
-  } on FirebaseAuthException catch (e) {
-    String mensagem;
-
-    switch (e.code) {
-      case 'email-already-in-use':
-        mensagem = "Este e-mail já está cadastrado.";
-        break;
-      case 'invalid-email':
-        mensagem = "E-mail inválido.";
-        break;
-      case 'weak-password':
-        mensagem = "A senha deve ter pelo menos 6 caracteres.";
-        break;
-      default:
-        mensagem = e.message ?? "Erro ao criar conta.";
+    if (_nameController.text.trim().isEmpty ||
+        _emailController.text.trim().isEmpty ||
+        _passwordController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Preencha todos os campos.")),
+      );
+      return;
     }
 
-    if (!mounted) return;
+    try {
+      // Cria usuário no Firebase Authentication
+      UserCredential userCredential = await _auth
+          .createUserWithEmailAndPassword(
+            email: _emailController.text.trim(),
+            password: _passwordController.text.trim(),
+          );
 
-    debugPrint("=======================================");
-    debugPrint("FIREBASE REGISTER ERROR");
-    debugPrint("Code: ${e.code}");
-    debugPrint("Message: ${e.message}");
-    debugPrint("=======================================");
+      // Obtém o UID do usuário criado
+      final uid = userCredential.user!.uid;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(mensagem)),
-    );
-  } catch (e) {
-    debugPrint("=======================================");
-    debugPrint("FIRESTORE ERROR");
-    debugPrint(e.toString());
-    debugPrint("=======================================");
+      // Salva os dados no Cloud Firestore
+      await _firestore.collection('usuarios').doc(uid).set({
+        'uid': uid,
+        'nome': _nameController.text.trim(),
+        'email': _emailController.text.trim(),
 
-    if (!mounted) return;
+        // Dados do jogador
+        'pontos': 1000,
+        'vitorias': 0,
+        'derrotas': 0,
+        'partidas': 0,
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text("Erro inesperado: $e")),
-    );
+        'criadoEm': FieldValue.serverTimestamp(),
+      });
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Conta criada com sucesso!")),
+      );
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const LoginPage()),
+      );
+    } on FirebaseAuthException catch (e) {
+      String mensagem;
+
+      switch (e.code) {
+        case 'email-already-in-use':
+          mensagem = "Este e-mail já está cadastrado.";
+          break;
+        case 'invalid-email':
+          mensagem = "E-mail inválido.";
+          break;
+        case 'weak-password':
+          mensagem = "A senha deve ter pelo menos 6 caracteres.";
+          break;
+        default:
+          mensagem = e.message ?? "Erro ao criar conta.";
+      }
+
+      if (!mounted) return;
+
+      debugPrint("=======================================");
+      debugPrint("FIREBASE REGISTER ERROR");
+      debugPrint("Code: ${e.code}");
+      debugPrint("Message: ${e.message}");
+      debugPrint("=======================================");
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(mensagem)));
+    } catch (e) {
+      debugPrint("=======================================");
+      debugPrint("FIRESTORE ERROR");
+      debugPrint(e.toString());
+      debugPrint("=======================================");
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Erro inesperado: $e")));
+    }
   }
-}
 
   @override
   Widget build(BuildContext context) {
