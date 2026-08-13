@@ -2,6 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import 'challenge_schedule_screens.dart';
+
 class PlayerProfilePage extends StatelessWidget {
   final String jogadorId;
   final Map<String, dynamic> jogador;
@@ -12,9 +14,7 @@ class PlayerProfilePage extends StatelessWidget {
     required this.jogador,
   });
 
-  Future<void> _desafiarJogador(
-    BuildContext context,
-  ) async {
+  Future<void> _desafiarJogador(BuildContext context) async {
     final usuarioAtual = FirebaseAuth.instance.currentUser;
 
     if (usuarioAtual == null) {
@@ -29,9 +29,7 @@ class PlayerProfilePage extends StatelessWidget {
     // Impede o usuário de desafiar a si mesmo.
     if (usuarioAtual.uid == jogadorId) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Você não pode desafiar a si mesmo."),
-        ),
+        const SnackBar(content: Text("Você não pode desafiar a si mesmo.")),
       );
       return;
     }
@@ -42,9 +40,7 @@ class PlayerProfilePage extends StatelessWidget {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text("Desafiar jogador"),
-        content: Text(
-          "Deseja realmente desafiar $nomeJogador?",
-        ),
+        content: Text("Deseja realmente desafiar $nomeJogador?"),
         actions: [
           TextButton(
             onPressed: () {
@@ -75,14 +71,8 @@ class PlayerProfilePage extends StatelessWidget {
       // que ainda estão pendentes.
       final desafiosPendentes = await firestore
           .collection('desafios')
-          .where(
-            'desafianteId',
-            isEqualTo: usuarioAtual.uid,
-          )
-          .where(
-            'status',
-            isEqualTo: 'pendente',
-          )
+          .where('desafianteId', isEqualTo: usuarioAtual.uid)
+          .where('status', isEqualTo: 'pendente')
           .get();
 
       // Verifica se já existe um desafio pendente
@@ -95,9 +85,7 @@ class PlayerProfilePage extends StatelessWidget {
 
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text(
-                "Você já enviou um desafio para este jogador.",
-              ),
+              content: Text("Você já enviou um desafio para este jogador."),
             ),
           );
 
@@ -107,16 +95,11 @@ class PlayerProfilePage extends StatelessWidget {
 
       // Limite de 2 desafios enviados nos últimos 7 dias.
       final agora = DateTime.now();
-      final limite = agora.subtract(
-        const Duration(days: 7),
-      );
+      final limite = agora.subtract(const Duration(days: 7));
 
       final desafiosEnviados = await firestore
           .collection('desafios')
-          .where(
-            'desafianteId',
-            isEqualTo: usuarioAtual.uid,
-          )
+          .where('desafianteId', isEqualTo: usuarioAtual.uid)
           .get();
 
       int quantidadeUltimos7Dias = 0;
@@ -161,9 +144,7 @@ class PlayerProfilePage extends StatelessWidget {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            "Desafio enviado para $nomeJogador!",
-          ),
+          content: Text("Desafio enviado para $nomeJogador!"),
           backgroundColor: Colors.green,
         ),
       );
@@ -172,9 +153,7 @@ class PlayerProfilePage extends StatelessWidget {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            "Erro ao enviar desafio: $e",
-          ),
+          content: Text("Erro ao enviar desafio: $e"),
           backgroundColor: Colors.red,
         ),
       );
@@ -203,13 +182,7 @@ class PlayerProfilePage extends StatelessWidget {
         padding: const EdgeInsets.all(20),
         child: ListView(
           children: [
-            const CircleAvatar(
-              radius: 55,
-              child: Icon(
-                Icons.person,
-                size: 60,
-              ),
-            ),
+            const CircleAvatar(radius: 55, child: Icon(Icons.person, size: 60)),
 
             const SizedBox(height: 20),
 
@@ -228,10 +201,7 @@ class PlayerProfilePage extends StatelessWidget {
             Center(
               child: Text(
                 nivel,
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.grey.shade700,
-                ),
+                style: TextStyle(fontSize: 16, color: Colors.grey.shade700),
               ),
             ),
 
@@ -251,12 +221,7 @@ class PlayerProfilePage extends StatelessWidget {
                         color: Colors.green.shade900,
                       ),
                     ),
-                    const Text(
-                      "pontos",
-                      style: TextStyle(
-                        color: Colors.grey,
-                      ),
-                    ),
+                    const Text("pontos", style: TextStyle(color: Colors.grey)),
                   ],
                 ),
               ),
@@ -268,24 +233,11 @@ class PlayerProfilePage extends StatelessWidget {
               child: Padding(
                 padding: const EdgeInsets.all(20),
                 child: Row(
-                  mainAxisAlignment:
-                      MainAxisAlignment.spaceAround,
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
-                    _estatistica(
-                      Icons.sports_tennis,
-                      "$partidas",
-                      "Partidas",
-                    ),
-                    _estatistica(
-                      Icons.check_circle,
-                      "$vitorias",
-                      "Vitórias",
-                    ),
-                    _estatistica(
-                      Icons.cancel,
-                      "$derrotas",
-                      "Derrotas",
-                    ),
+                    _estatistica(Icons.sports_tennis, "$partidas", "Partidas"),
+                    _estatistica(Icons.check_circle, "$vitorias", "Vitórias"),
+                    _estatistica(Icons.cancel, "$derrotas", "Derrotas"),
                   ],
                 ),
               ),
@@ -299,14 +251,20 @@ class PlayerProfilePage extends StatelessWidget {
                 height: 55,
                 child: ElevatedButton.icon(
                   onPressed: () {
-                    _desafiarJogador(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => ChallengeSchedulePage(
+                          jogadorId: jogadorId,
+                          nomeJogador: nome,
+                        ),
+                      ),
+                    );
                   },
                   icon: const Icon(Icons.sports_tennis),
                   label: const Text(
                     "DESAFIAR JOGADOR",
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontWeight: FontWeight.bold),
                   ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.green.shade900,
@@ -320,32 +278,18 @@ class PlayerProfilePage extends StatelessWidget {
     );
   }
 
-  Widget _estatistica(
-    IconData icone,
-    String valor,
-    String titulo,
-  ) {
+  Widget _estatistica(IconData icone, String valor, String titulo) {
     return Column(
       children: [
-        Icon(
-          icone,
-          color: Colors.green,
-          size: 24,
-        ),
+        Icon(icone, color: Colors.green, size: 24),
         const SizedBox(height: 5),
         Text(
           valor,
-          style: const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
         Text(
           titulo,
-          style: TextStyle(
-            fontSize: 11,
-            color: Colors.grey.shade600,
-          ),
+          style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
         ),
       ],
     );
