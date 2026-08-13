@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'profile_screens.dart';
 import 'reservations_menu_screens.dart';
 import 'ranking_screens.dart';
+import 'challenges_screens.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -111,7 +112,19 @@ class HomePage extends StatelessWidget {
                       );
                     },
                   ),
-                  card(context, "Desafios", Icons.sports_tennis),
+                  card(
+                    context,
+                    "Desafios",
+                    Icons.sports_tennis,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const ChallengesPage(),
+                        ),
+                      );
+                    },
+                  ),
                   card(
                     context,
                     "Reservas",

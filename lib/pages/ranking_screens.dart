@@ -2,6 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import 'player_profile_screens.dart';
+
 class RankingPage extends StatelessWidget {
   const RankingPage({super.key});
 
@@ -71,6 +73,9 @@ class RankingPage extends StatelessWidget {
               final posicao = index + 1;
 
               return _cardJogador(
+                context: context,
+                jogadorId: uid,
+                jogador: jogador,
                 nome: nome,
                 pontos: pontos,
                 nivel: nivel,
@@ -88,6 +93,9 @@ class RankingPage extends StatelessWidget {
   }
 
   Widget _cardJogador({
+    required BuildContext context,
+    required String jogadorId,
+    required Map<String, dynamic> jogador,
     required String nome,
     required dynamic pontos,
     required String nivel,
@@ -115,131 +123,147 @@ class RankingPage extends StatelessWidget {
       elevation: ehUsuarioAtual ? 6 : 3,
       margin: const EdgeInsets.only(bottom: 15),
       color: ehUsuarioAtual ? Colors.green.shade50 : null,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                CircleAvatar(
-                  radius: 28,
-                  backgroundColor: posicao <= 3
-                      ? Colors.amber.shade100
-                      : Colors.grey.shade200,
-                  child: medalha != null
-                      ? Icon(
-                          medalha,
-                          color: Colors.orange.shade800,
-                          size: 30,
-                        )
-                      : Text(
-                          "$posicaoº",
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                        ),
-                ),
-
-                const SizedBox(width: 15),
-
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              nome,
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: ehUsuarioAtual
+            ? null
+            : () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => PlayerProfilePage(
+                      jogadorId: jogadorId,
+                      jogador: jogador,
+                    ),
+                  ),
+                );
+              },
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  CircleAvatar(
+                    radius: 28,
+                    backgroundColor: posicao <= 3
+                        ? Colors.amber.shade100
+                        : Colors.grey.shade200,
+                    child: medalha != null
+                        ? Icon(
+                            medalha,
+                            color: Colors.orange.shade800,
+                            size: 30,
+                          )
+                        : Text(
+                            "$posicaoº",
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
                             ),
                           ),
+                  ),
 
-                          if (ehUsuarioAtual)
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.green.shade900,
-                                borderRadius:
-                                    BorderRadius.circular(12),
-                              ),
-                              child: const Text(
-                                "VOCÊ",
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 10,
+                  const SizedBox(width: 15),
+
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                nome,
+                                style: const TextStyle(
+                                  fontSize: 18,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
                             ),
-                        ],
-                      ),
 
-                      const SizedBox(height: 4),
+                            if (ehUsuarioAtual)
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.green.shade900,
+                                  borderRadius:
+                                      BorderRadius.circular(12),
+                                ),
+                                child: const Text(
+                                  "VOCÊ",
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
 
+                        const SizedBox(height: 4),
+
+                        Text(
+                          nivel,
+                          style: TextStyle(
+                            color: Colors.grey.shade700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
                       Text(
-                        nivel,
+                        "$pontos",
                         style: TextStyle(
-                          color: Colors.grey.shade700,
+                          fontSize: 21,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.green.shade900,
+                        ),
+                      ),
+                      Text(
+                        "pontos",
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.grey.shade600,
                         ),
                       ),
                     ],
                   ),
-                ),
+                ],
+              ),
 
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      "$pontos",
-                      style: TextStyle(
-                        fontSize: 21,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.green.shade900,
-                      ),
-                    ),
-                    Text(
-                      "pontos",
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Colors.grey.shade600,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
+              const Divider(height: 25),
 
-            const Divider(height: 25),
-
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _estatistica(
-                  Icons.sports_tennis,
-                  "$partidas",
-                  "Partidas",
-                ),
-                _estatistica(
-                  Icons.check_circle,
-                  "$vitorias",
-                  "Vitórias",
-                ),
-                _estatistica(
-                  Icons.cancel,
-                  "$derrotas",
-                  "Derrotas",
-                ),
-              ],
-            ),
-          ],
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _estatistica(
+                    Icons.sports_tennis,
+                    "$partidas",
+                    "Partidas",
+                  ),
+                  _estatistica(
+                    Icons.check_circle,
+                    "$vitorias",
+                    "Vitórias",
+                  ),
+                  _estatistica(
+                    Icons.cancel,
+                    "$derrotas",
+                    "Derrotas",
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
