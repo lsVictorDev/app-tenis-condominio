@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import 'profile_screens.dart';
 import 'reservations_menu_screens.dart';
+import 'ranking_screens.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -97,7 +98,19 @@ class HomePage extends StatelessWidget {
                 crossAxisSpacing: 15,
                 mainAxisSpacing: 15,
                 children: [
-                  card(context, "Ranking", Icons.emoji_events),
+                  card(
+                    context,
+                    "Ranking",
+                    Icons.emoji_events,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const RankingPage(),
+                        ),
+                      );
+                    },
+                  ),
                   card(context, "Desafios", Icons.sports_tennis),
                   card(
                     context,
