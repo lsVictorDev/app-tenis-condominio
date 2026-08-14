@@ -14,37 +14,56 @@ class _ReservationPageState extends State<ReservationPage> {
   DateTime _dataSelecionada = DateTime.now();
 
   String _quadraSelecionada = "Quadra 1";
-  String _horarioSelecionado = "18:00";
+  String _horarioSelecionado = "07:00";
 
   bool _reservando = false;
   bool _carregandoHorarios = false;
 
-  final List<String> _quadras = [
-    "Quadra 1",
-    "Quadra 2",
-  ];
+  final List<String> _quadras = ["Quadra 1", "Quadra 2"];
 
+  // Cada utilização da quadra dura 2 horas.
   final List<String> _horarios = [
     "07:00",
-    "08:00",
     "09:00",
-    "10:00",
     "11:00",
-    "12:00",
     "13:00",
-    "14:00",
     "15:00",
-    "16:00",
     "17:00",
-    "18:00",
     "19:00",
-    "20:00",
     "21:00",
   ];
 
   Set<String> _horariosOcupados = {};
 
+  // ============================================================
+  // CONVERTE "07:00" PARA 7
+  // ============================================================
+
+  int _horaParaInteiro(String horario) {
+    return int.parse(horario.split(":")[0]);
+  }
+
+  // ============================================================
+  // VERIFICA SE DOIS INTERVALOS POSSUEM CONFLITO
+  // ============================================================
+
+  bool _existeConflito(
+    int inicioNovo,
+    int fimNovo,
+    int inicioExistente,
+    int fimExistente,
+  ) {
+    return inicioNovo < fimExistente && fimNovo > inicioExistente;
+  }
+
+  // ============================================================
+  // CARREGA HORÁRIOS OCUPADOS
+  // CONSIDERANDO RESERVAS E DESAFIOS
+  // ============================================================
+
   Future<void> _carregarHorariosOcupados() async {
+    if (!mounted) return;
+
     setState(() {
       _carregandoHorarios = true;
       _horariosOcupados = {};
@@ -54,43 +73,102 @@ class _ReservationPageState extends State<ReservationPage> {
       final dataReserva =
           DateFormat("yyyy-MM-dd").format(_dataSelecionada);
 
-      final reservas = await FirebaseFirestore.instance
-          .collection("reservas")
-          .where(
-            "quadra",
-            isEqualTo: _quadraSelecionada,
-          )
-          .where(
-            "data",
-            isEqualTo: dataReserva,
-          )
-          .where(
-            "status",
-            isEqualTo: "ativa",
-          )
-          .get();
+      final firestore = FirebaseFirestore.instance;
 
       final Set<String> horariosOcupados = {};
+
+      // ============================================================
+      // 1. BUSCA RESERVAS ATIVAS
+      // ============================================================
+
+      final reservas = await firestore
+          .collection("reservas")
+          .where("quadra", isEqualTo: _quadraSelecionada)
+          .where("data", isEqualTo: dataReserva)
+          .where("status", isEqualTo: "ativa")
+          .get();
 
       for (final reserva in reservas.docs) {
         final dados = reserva.data();
 
-        final horaInicio =
-            dados["horaInicio"] as String;
+        final horaInicio = dados["horaInicio"];
 
-        final horaFim =
-            dados["horaFim"] as String;
+        final horaFim = dados["horaFim"];
 
-        final inicio =
-            int.parse(horaInicio.split(":")[0]);
+        if (horaInicio is! String || horaFim is! String) {
+          continue;
+        }
 
-        final fim =
-            int.parse(horaFim.split(":")[0]);
+        final inicioExistente = _horaParaInteiro(horaInicio);
+        final fimExistente = _horaParaInteiro(horaFim);
 
-        for (int hora = inicio; hora < fim; hora++) {
-          horariosOcupados.add(
-            "${hora.toString().padLeft(2, '0')}:00",
-          );
+        // Verifica cada bloco de 2 horas disponível.
+        for (final horario in _horarios) {
+          final inicioBloco = _horaParaInteiro(horario);
+          final fimBloco = inicioBloco + 2;
+
+          if (_existeConflito(
+            inicioBloco,
+            fimBloco,
+            inicioExistente,
+            fimExistente,
+          )) {
+            horariosOcupados.add(horario);
+          }
+        }
+      }
+
+      // ============================================================
+      // 2. BUSCA DESAFIOS
+      //
+      // Consideramos:
+      // - pendente
+      // - aceito
+      //
+      // Um desafio pendente já representa um horário reservado
+      // temporariamente para aquela partida.
+      // ============================================================
+
+      final desafios = await firestore
+          .collection("desafios")
+          .where("quadra", isEqualTo: _quadraSelecionada)
+          .where("data", isEqualTo: dataReserva)
+          .get();
+
+      for (final desafio in desafios.docs) {
+        final dados = desafio.data();
+
+        final status = dados["status"];
+
+        // Ignora desafios recusados/cancelados/finalizados.
+        if (status != "pendente" && status != "aceito") {
+          continue;
+        }
+
+        final horaInicio = dados["horaInicio"];
+
+        final horaFim = dados["horaFim"];
+
+        if (horaInicio is! String || horaFim is! String) {
+          continue;
+        }
+
+        final inicioExistente = _horaParaInteiro(horaInicio);
+        final fimExistente = _horaParaInteiro(horaFim);
+
+        // Verifica cada bloco de 2 horas disponível.
+        for (final horario in _horarios) {
+          final inicioBloco = _horaParaInteiro(horario);
+          final fimBloco = inicioBloco + 2;
+
+          if (_existeConflito(
+            inicioBloco,
+            fimBloco,
+            inicioExistente,
+            fimExistente,
+          )) {
+            horariosOcupados.add(horario);
+          }
         }
       }
 
@@ -98,6 +176,17 @@ class _ReservationPageState extends State<ReservationPage> {
 
       setState(() {
         _horariosOcupados = horariosOcupados;
+
+        // Caso o horário selecionado tenha ficado ocupado,
+        // seleciona automaticamente o primeiro horário disponível.
+        if (_horariosOcupados.contains(_horarioSelecionado)) {
+          final disponivel = _horarios.firstWhere(
+            (horario) => !_horariosOcupados.contains(horario),
+            orElse: () => _horarios.first,
+          );
+
+          _horarioSelecionado = disponivel;
+        }
       });
     } catch (e) {
       if (!mounted) return;
@@ -118,6 +207,10 @@ class _ReservationPageState extends State<ReservationPage> {
     }
   }
 
+  // ============================================================
+  // SELECIONAR DATA
+  // ============================================================
+
   Future<void> _selecionarData() async {
     final DateTime? data = await showDatePicker(
       context: context,
@@ -136,6 +229,10 @@ class _ReservationPageState extends State<ReservationPage> {
     }
   }
 
+  // ============================================================
+  // REALIZA A RESERVA
+  // ============================================================
+
   Future<void> _reservarQuadra() async {
     if (_reservando) return;
 
@@ -144,23 +241,20 @@ class _ReservationPageState extends State<ReservationPage> {
     });
 
     try {
-      final usuario =
-          FirebaseAuth.instance.currentUser;
+      final usuario = FirebaseAuth.instance.currentUser;
 
       if (usuario == null) {
         throw Exception("Usuário não autenticado.");
       }
 
+      final firestore = FirebaseFirestore.instance;
+
       final dataReserva =
-          DateFormat("yyyy-MM-dd")
-              .format(_dataSelecionada);
+          DateFormat("yyyy-MM-dd").format(_dataSelecionada);
 
-      final horaInicio =
-          _horarioSelecionado;
+      final horaInicio = _horarioSelecionado;
 
-      final hora = int.parse(
-        _horarioSelecionado.split(":")[0],
-      );
+      final hora = _horaParaInteiro(_horarioSelecionado);
 
       final horaFim =
           "${(hora + 2).toString().padLeft(2, '0')}:00";
@@ -168,43 +262,40 @@ class _ReservationPageState extends State<ReservationPage> {
       final inicioNovaReserva = hora;
       final fimNovaReserva = hora + 2;
 
-      final reservas =
-          await FirebaseFirestore.instance
-              .collection("reservas")
-              .where(
-                "quadra",
-                isEqualTo: _quadraSelecionada,
-              )
-              .where(
-                "data",
-                isEqualTo: dataReserva,
-              )
-              .where(
-                "status",
-                isEqualTo: "ativa",
-              )
-              .get();
+      // ============================================================
+      // 1. VERIFICA RESERVAS EXISTENTES
+      // ============================================================
+
+      final reservas = await firestore
+          .collection("reservas")
+          .where("quadra", isEqualTo: _quadraSelecionada)
+          .where("data", isEqualTo: dataReserva)
+          .where("status", isEqualTo: "ativa")
+          .get();
 
       for (final reserva in reservas.docs) {
         final dados = reserva.data();
 
-        final horarioExistente =
-            dados["horaInicio"] as String;
+        final horarioExistente = dados["horaInicio"];
+        final horarioFimExistente = dados["horaFim"];
 
-        final horarioFimExistente =
-            dados["horaFim"] as String;
+        if (horarioExistente is! String ||
+            horarioFimExistente is! String) {
+          continue;
+        }
 
-        final inicioExistente = int.parse(
-          horarioExistente.split(":")[0],
+        final inicioExistente =
+            _horaParaInteiro(horarioExistente);
+
+        final fimExistente =
+            _horaParaInteiro(horarioFimExistente);
+
+        final existeConflito = _existeConflito(
+          inicioNovaReserva,
+          fimNovaReserva,
+          inicioExistente,
+          fimExistente,
         );
-
-        final fimExistente = int.parse(
-          horarioFimExistente.split(":")[0],
-        );
-
-        final existeConflito =
-            inicioNovaReserva < fimExistente &&
-            fimNovaReserva > inicioExistente;
 
         if (existeConflito) {
           if (!mounted) return;
@@ -215,10 +306,9 @@ class _ReservationPageState extends State<ReservationPage> {
                 "Quadra indisponível. "
                 "Ela já está reservada das "
                 "$horarioExistente às "
-                "$horarioFimExistente. "
-                "Você pode reservar novamente "
-                "a partir das $horarioFimExistente.",
+                "$horarioFimExistente.",
               ),
+              backgroundColor: Colors.red,
             ),
           );
 
@@ -228,9 +318,73 @@ class _ReservationPageState extends State<ReservationPage> {
         }
       }
 
-      await FirebaseFirestore.instance
-          .collection("reservas")
-          .add({
+      // ============================================================
+      // 2. VERIFICA DESAFIOS EXISTENTES
+      // ============================================================
+
+      final desafios = await firestore
+          .collection("desafios")
+          .where("quadra", isEqualTo: _quadraSelecionada)
+          .where("data", isEqualTo: dataReserva)
+          .get();
+
+      for (final desafio in desafios.docs) {
+        final dados = desafio.data();
+
+        final status = dados["status"];
+
+        // Desafios pendentes e aceitos ocupam a quadra.
+        if (status != "pendente" && status != "aceito") {
+          continue;
+        }
+
+        final horarioExistente = dados["horaInicio"];
+        final horarioFimExistente = dados["horaFim"];
+
+        if (horarioExistente is! String ||
+            horarioFimExistente is! String) {
+          continue;
+        }
+
+        final inicioExistente =
+            _horaParaInteiro(horarioExistente);
+
+        final fimExistente =
+            _horaParaInteiro(horarioFimExistente);
+
+        final existeConflito = _existeConflito(
+          inicioNovaReserva,
+          fimNovaReserva,
+          inicioExistente,
+          fimExistente,
+        );
+
+        if (existeConflito) {
+          if (!mounted) return;
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                "Não foi possível realizar a reserva. "
+                "${_quadraSelecionada} já está ocupada por "
+                "um desafio das $horarioExistente às "
+                "$horarioFimExistente.",
+              ),
+              backgroundColor: Colors.red,
+            ),
+          );
+
+          await _carregarHorariosOcupados();
+
+          return;
+        }
+      }
+
+      // ============================================================
+      // 3. CRIA A RESERVA
+      // ============================================================
+
+      await firestore.collection("reservas").add({
         "usuarioId": usuario.uid,
         "email": usuario.email,
         "quadra": _quadraSelecionada,
@@ -246,9 +400,8 @@ class _ReservationPageState extends State<ReservationPage> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-            "Reserva realizada com sucesso!",
-          ),
+          content: Text("Reserva realizada com sucesso!"),
+          backgroundColor: Colors.green,
         ),
       );
 
@@ -258,9 +411,8 @@ class _ReservationPageState extends State<ReservationPage> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            "Erro ao reservar: $e",
-          ),
+          content: Text("Erro ao reservar: $e"),
+          backgroundColor: Colors.red,
         ),
       );
     } finally {
@@ -272,12 +424,19 @@ class _ReservationPageState extends State<ReservationPage> {
     }
   }
 
-  Widget _horarioButton(String horario) {
-    final ocupado =
-        _horariosOcupados.contains(horario);
+  // ============================================================
+  // BOTÃO DE HORÁRIO
+  // ============================================================
 
-    final selecionado =
-        _horarioSelecionado == horario;
+  Widget _horarioButton(String horario) {
+    final ocupado = _horariosOcupados.contains(horario);
+
+    final selecionado = _horarioSelecionado == horario;
+
+    final horaInicio = _horaParaInteiro(horario);
+
+    final horaFim =
+        "${(horaInicio + 2).toString().padLeft(2, '0')}:00";
 
     return GestureDetector(
       onTap: ocupado
@@ -298,8 +457,7 @@ class _ReservationPageState extends State<ReservationPage> {
               : selecionado
                   ? Colors.green.shade900
                   : Colors.green.shade50,
-          borderRadius:
-              BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: ocupado
                 ? Colors.red.shade300
@@ -324,9 +482,11 @@ class _ReservationPageState extends State<ReservationPage> {
                       : Colors.green.shade900,
               size: 22,
             ),
+
             const SizedBox(height: 6),
+
             Text(
-              horario,
+              "$horario - $horaFim",
               style: TextStyle(
                 fontWeight: FontWeight.bold,
                 color: ocupado
@@ -336,11 +496,11 @@ class _ReservationPageState extends State<ReservationPage> {
                         : Colors.green.shade900,
               ),
             ),
+
             const SizedBox(height: 3),
+
             Text(
-              ocupado
-                  ? "Ocupado"
-                  : "Disponível",
+              ocupado ? "Ocupado" : "Disponível",
               style: TextStyle(
                 fontSize: 11,
                 color: ocupado
@@ -368,26 +528,24 @@ class _ReservationPageState extends State<ReservationPage> {
   @override
   Widget build(BuildContext context) {
     final dataFormatada =
-        DateFormat("dd/MM/yyyy")
-            .format(_dataSelecionada);
+        DateFormat("dd/MM/yyyy").format(_dataSelecionada);
 
-    final horaSelecionada = int.parse(
-      _horarioSelecionado.split(":")[0],
-    );
+    final horaSelecionada =
+        _horaParaInteiro(_horarioSelecionado);
 
     final horaFimSelecionada =
         "${(horaSelecionada + 2).toString().padLeft(2, '0')}:00";
 
     return Scaffold(
       appBar: AppBar(
-        title:
-            const Text("Reservar Quadra"),
-        backgroundColor:
-            Colors.green.shade900,
+        title: const Text("Reservar Quadra"),
+        backgroundColor: Colors.green.shade900,
         foregroundColor: Colors.white,
       ),
+
       body: Padding(
         padding: const EdgeInsets.all(20),
+
         child: ListView(
           children: [
             const Icon(
@@ -401,8 +559,7 @@ class _ReservationPageState extends State<ReservationPage> {
             const Text(
               "Data",
               style: TextStyle(
-                fontWeight:
-                    FontWeight.bold,
+                fontWeight: FontWeight.bold,
                 fontSize: 16,
               ),
             ),
@@ -411,39 +568,33 @@ class _ReservationPageState extends State<ReservationPage> {
 
             InkWell(
               onTap: _selecionarData,
-              borderRadius:
-                  BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(12),
+
               child: Container(
-                padding:
-                    const EdgeInsets.symmetric(
+                padding: const EdgeInsets.symmetric(
                   horizontal: 15,
                   vertical: 18,
                 ),
-                decoration:
-                    BoxDecoration(
-                  border: Border.all(
-                    color: Colors.grey,
-                  ),
-                  borderRadius:
-                      BorderRadius.circular(12),
+
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey),
+                  borderRadius: BorderRadius.circular(12),
                 ),
+
                 child: Row(
                   children: [
-                    const Icon(
-                      Icons.calendar_month,
-                    ),
+                    const Icon(Icons.calendar_month),
+
                     const SizedBox(width: 10),
+
                     Text(
                       dataFormatada,
-                      style:
-                          const TextStyle(
-                        fontSize: 16,
-                      ),
+                      style: const TextStyle(fontSize: 16),
                     ),
+
                     const Spacer(),
-                    const Icon(
-                      Icons.edit_calendar,
-                    ),
+
+                    const Icon(Icons.edit_calendar),
                   ],
                 ),
               ),
@@ -454,8 +605,7 @@ class _ReservationPageState extends State<ReservationPage> {
             const Text(
               "Quadra",
               style: TextStyle(
-                fontWeight:
-                    FontWeight.bold,
+                fontWeight: FontWeight.bold,
                 fontSize: 16,
               ),
             ),
@@ -464,24 +614,23 @@ class _ReservationPageState extends State<ReservationPage> {
 
             DropdownButtonFormField<String>(
               value: _quadraSelecionada,
-              decoration:
-                  const InputDecoration(
-                border:
-                    OutlineInputBorder(),
+
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
               ),
-              items:
-                  _quadras.map((quadra) {
+
+              items: _quadras.map((quadra) {
                 return DropdownMenuItem(
                   value: quadra,
                   child: Text(quadra),
                 );
               }).toList(),
+
               onChanged: (value) {
                 if (value == null) return;
 
                 setState(() {
-                  _quadraSelecionada =
-                      value;
+                  _quadraSelecionada = value;
                 });
 
                 _carregarHorariosOcupados();
@@ -493,21 +642,21 @@ class _ReservationPageState extends State<ReservationPage> {
             Row(
               mainAxisAlignment:
                   MainAxisAlignment.spaceBetween,
+
               children: [
                 const Text(
                   "Horários",
                   style: TextStyle(
-                    fontWeight:
-                        FontWeight.bold,
+                    fontWeight: FontWeight.bold,
                     fontSize: 18,
                   ),
                 ),
+
                 if (_carregandoHorarios)
                   const SizedBox(
                     width: 20,
                     height: 20,
-                    child:
-                        CircularProgressIndicator(
+                    child: CircularProgressIndicator(
                       strokeWidth: 2,
                     ),
                   ),
@@ -519,8 +668,7 @@ class _ReservationPageState extends State<ReservationPage> {
             Text(
               "Cada reserva tem duração de 2 horas.",
               style: TextStyle(
-                color:
-                    Colors.grey.shade700,
+                color: Colors.grey.shade700,
               ),
             ),
 
@@ -528,13 +676,9 @@ class _ReservationPageState extends State<ReservationPage> {
 
             if (_carregandoHorarios)
               const Padding(
-                padding:
-                    EdgeInsets.symmetric(
-                  vertical: 30,
-                ),
+                padding: EdgeInsets.symmetric(vertical: 30),
                 child: Center(
-                  child:
-                      CircularProgressIndicator(),
+                  child: CircularProgressIndicator(),
                 ),
               )
             else
@@ -542,8 +686,9 @@ class _ReservationPageState extends State<ReservationPage> {
                 shrinkWrap: true,
                 physics:
                     const NeverScrollableScrollPhysics(),
-                itemCount:
-                    _horarios.length,
+
+                itemCount: _horarios.length,
+
                 gridDelegate:
                     const SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 2,
@@ -551,8 +696,8 @@ class _ReservationPageState extends State<ReservationPage> {
                   mainAxisSpacing: 12,
                   childAspectRatio: 1.65,
                 ),
-                itemBuilder:
-                    (context, index) {
+
+                itemBuilder: (context, index) {
                   return _horarioButton(
                     _horarios[index],
                   );
@@ -562,29 +707,26 @@ class _ReservationPageState extends State<ReservationPage> {
             const SizedBox(height: 30),
 
             Container(
-              padding:
-                  const EdgeInsets.all(18),
-              decoration:
-                  BoxDecoration(
-                color:
-                    Colors.green.shade50,
-                borderRadius:
-                    BorderRadius.circular(14),
+              padding: const EdgeInsets.all(18),
+
+              decoration: BoxDecoration(
+                color: Colors.green.shade50,
+                borderRadius: BorderRadius.circular(14),
                 border: Border.all(
-                  color:
-                      Colors.green.shade200,
+                  color: Colors.green.shade200,
                 ),
               ),
+
               child: Column(
                 crossAxisAlignment:
                     CrossAxisAlignment.start,
+
                 children: [
                   const Text(
                     "Resumo da reserva",
                     style: TextStyle(
                       fontSize: 17,
-                      fontWeight:
-                          FontWeight.bold,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
 
@@ -596,9 +738,9 @@ class _ReservationPageState extends State<ReservationPage> {
                         Icons.calendar_month,
                         size: 20,
                       ),
-                      const SizedBox(
-                        width: 10,
-                      ),
+
+                      const SizedBox(width: 10),
+
                       Text(dataFormatada),
                     ],
                   ),
@@ -611,12 +753,10 @@ class _ReservationPageState extends State<ReservationPage> {
                         Icons.sports_tennis,
                         size: 20,
                       ),
-                      const SizedBox(
-                        width: 10,
-                      ),
-                      Text(
-                        _quadraSelecionada,
-                      ),
+
+                      const SizedBox(width: 10),
+
+                      Text(_quadraSelecionada),
                     ],
                   ),
 
@@ -628,9 +768,9 @@ class _ReservationPageState extends State<ReservationPage> {
                         Icons.access_time,
                         size: 20,
                       ),
-                      const SizedBox(
-                        width: 10,
-                      ),
+
+                      const SizedBox(width: 10),
+
                       Text(
                         "$_horarioSelecionado às "
                         "$horaFimSelecionada",
@@ -645,40 +785,36 @@ class _ReservationPageState extends State<ReservationPage> {
 
             SizedBox(
               height: 55,
-              child:
-                  ElevatedButton.icon(
+
+              child: ElevatedButton.icon(
                 icon: _reservando
                     ? const SizedBox(
                         width: 20,
                         height: 20,
-                        child:
-                            CircularProgressIndicator(
+                        child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          color:
-                              Colors.white,
+                          color: Colors.white,
                         ),
                       )
-                    : const Icon(
-                        Icons.check,
-                      ),
+                    : const Icon(Icons.check),
+
                 label: Text(
                   _reservando
                       ? "VERIFICANDO..."
                       : "CONFIRMAR RESERVA",
-                  style:
-                      const TextStyle(
-                    fontWeight:
-                        FontWeight.bold,
+
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
                     fontSize: 16,
                   ),
                 ),
-                style:
-                    ElevatedButton.styleFrom(
+
+                style: ElevatedButton.styleFrom(
                   backgroundColor:
                       Colors.green.shade900,
-                  foregroundColor:
-                      Colors.white,
+                  foregroundColor: Colors.white,
                 ),
+
                 onPressed: _reservando
                     ? null
                     : _reservarQuadra,
@@ -690,28 +826,29 @@ class _ReservationPageState extends State<ReservationPage> {
             Row(
               mainAxisAlignment:
                   MainAxisAlignment.center,
+
               children: [
                 Icon(
                   Icons.circle,
                   size: 12,
-                  color:
-                      Colors.green.shade700,
+                  color: Colors.green.shade700,
                 ),
+
                 const SizedBox(width: 5),
-                const Text(
-                  "Disponível",
-                ),
+
+                const Text("Disponível"),
+
                 const SizedBox(width: 20),
+
                 Icon(
                   Icons.circle,
                   size: 12,
-                  color:
-                      Colors.red.shade700,
+                  color: Colors.red.shade700,
                 ),
+
                 const SizedBox(width: 5),
-                const Text(
-                  "Ocupado",
-                ),
+
+                const Text("Ocupado"),
               ],
             ),
 
